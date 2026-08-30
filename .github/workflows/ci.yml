@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Validate lockfile
+        run: uv lock --check
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Lint
+        run: uv run --no-sync ruff check .
+
+      - name: Check formatting
+        run: uv run --no-sync ruff format --check .
+
+      - name: Type check
+        run: uv run --no-sync mypy src
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Run tests
+        run: uv run --no-sync pytest
+        env:
+          PYTHONPATH: src:.
+
+  database:
+    name: PostgreSQL BM25
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build PostgreSQL with pg_textsearch
+        run: docker compose build postgres
+
+      - name: Start PostgreSQL
+        run: docker compose up --detach --wait postgres
+
+      - name: Apply migrations
+        run: docker compose run --build --rm migrate
+
+      - name: Smoke test BM25 and FTS indexes
+        run: |
+          docker compose exec -T postgres psql \
+            --username hybrid_search \
+            --dbname hybrid_search \
+            --set ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO documents (collection, id, content, metadata_json, embedding)
+          VALUES
+            ('ci', 'battery', 'Battery storage supports a resilient electricity grid', '{}', array_fill(0::real, ARRAY[1024])::vector),
+            ('ci', 'cooking', 'Sourdough bread fermentation and baking', '{}', array_fill(0::real, ARRAY[1024])::vector);
+          ANALYZE documents;
+          SQL
+
+          bm25_id="$(docker compose exec -T postgres psql \
+            --username hybrid_search --dbname hybrid_search --tuples-only --no-align \
+            --command "SELECT id FROM documents WHERE collection = 'ci' AND immutable_unaccent(content) <@> to_bm25query('battery grid', 'documents_content_bm25_idx') < 0 ORDER BY immutable_unaccent(content) <@> to_bm25query('battery grid', 'documents_content_bm25_idx') LIMIT 1")"
+          fts_id="$(docker compose exec -T postgres psql \
+            --username hybrid_search --dbname hybrid_search --tuples-only --no-align \
+            --command "SELECT id FROM documents, websearch_to_tsquery('simple', 'battery grid') query WHERE collection = 'ci' AND content_tsv @@ query ORDER BY ts_rank_cd(content_tsv, query) DESC LIMIT 1")"
+          test "$bm25_id" = battery
+          test "$fts_id" = battery
+
+      - name: Stop database
+        if: always()
+        run: docker compose down --volumes
+
+  compose:
+    name: Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Compose configurations
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.vllm.yml config --quiet
+          EMBEDDING_MODEL_ID=Qwen/Qwen3-Embedding-0.6B \
+          RERANKER_MODEL_ID=Qwen/Qwen3-Reranker-0.6B \
+          docker compose \
+            -f compose.yml \
+            -f examples/model_profiles/qwen3/compose.override.yml \
+            config --quiet

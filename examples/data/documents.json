@@ -1,0 +1,82 @@
+[
+  {
+    "id": "guide-hybrid-search-001",
+    "content": "Hybrid search combines exact lexical matching with semantic vector similarity. It retrieves documents that share a query's keywords as well as documents with related meaning, then merges both rankings with Reciprocal Rank Fusion.",
+    "metadata": {
+      "title": "What hybrid search does",
+      "category": "search",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-vector-search-002",
+    "content": "Vector search represents text as numeric embeddings. Nearby vectors often express similar concepts even when they do not contain the same words, which makes semantic retrieval useful for natural-language questions.",
+    "metadata": {
+      "title": "Semantic retrieval with embeddings",
+      "category": "search",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-lexical-search-003",
+    "content": "Lexical search uses a PostgreSQL BM25 index for keyword relevance and a trigram index for optional fuzzy matching. It is strong when identifiers, product names, error codes, or uncommon keywords matter.",
+    "metadata": {
+      "title": "Keyword and fuzzy retrieval",
+      "category": "search",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-rrf-004",
+    "content": "Reciprocal Rank Fusion, commonly abbreviated RRF, combines multiple ranked result lists without requiring their scores to share the same scale. Documents that rank well in more than one retrieval branch receive a stronger fused score.",
+    "metadata": {
+      "title": "How Reciprocal Rank Fusion works",
+      "category": "ranking",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-reranking-005",
+    "content": "A cross-encoder reranker reads the query together with each candidate document and assigns a final relevance score. Reranking fewer fused candidates improves precision while keeping the overall search latency manageable.",
+    "metadata": {
+      "title": "Improving precision with reranking",
+      "category": "ranking",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-ingestion-006",
+    "content": "The ingestion contract accepts any document with a unique string id, searchable content, and arbitrary JSON metadata. A regular seed performs an idempotent upsert, while reseed builds a complete snapshot in a staging table and swaps it into place.",
+    "metadata": {
+      "title": "Importing arbitrary document data",
+      "category": "ingestion",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "guide-cache-007",
+    "content": "Redis is optional for native development. When configured, it stores search responses for a limited time and provides a distributed lock so only one seeding operation runs across multiple API instances.",
+    "metadata": {
+      "title": "Optional caching and distributed locking",
+      "category": "operations",
+      "language": "en",
+      "source": "generated-example"
+    }
+  },
+  {
+    "id": "example-cooking-008",
+    "content": "Banana bread stays moist when ripe bananas are mixed gently with flour, eggs, and butter. Bake until a skewer inserted in the center comes out clean, then cool the loaf before slicing.",
+    "metadata": {
+      "title": "A deliberately unrelated cooking example",
+      "category": "cooking",
+      "language": "en",
+      "source": "generated-example"
+    }
+  }
+]

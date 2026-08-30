@@ -1,0 +1,73 @@
+services:
+  embedding:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai-cpu:v0.28.0}
+    ports:
+      - "${EMBEDDING_PORT:-5678}:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - VLLM_CPU_KVCACHE_SPACE=1
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_NICE
+    shm_size: 2g
+    command:
+      - "--model"
+      - "${EMBEDDING_MODEL_ID:-mixedbread-ai/mxbai-embed-large-v1}"
+      - "--served-model-name"
+      - "${EMBEDDING_MODEL_ID:-mixedbread-ai/mxbai-embed-large-v1}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--max-model-len"
+      - "${EMBEDDING_MAX_MODEL_LEN:-512}"
+      - "--max-num-seqs"
+      - "${EMBEDDING_MAX_NUM_SEQS:-16}"
+      - "--enforce-eager"
+      - "--runner"
+      - "pooling"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
+  reranker:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai-cpu:v0.28.0}
+    ports:
+      - "${RERANKER_PORT:-5679}:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - VLLM_CPU_KVCACHE_SPACE=1
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_NICE
+    shm_size: 2g
+    command:
+      - "--model"
+      - "${RERANKER_MODEL_ID:-cross-encoder/ms-marco-MiniLM-L6-v2}"
+      - "--served-model-name"
+      - "${RERANKER_MODEL_ID:-cross-encoder/ms-marco-MiniLM-L6-v2}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--max-model-len"
+      - "${RERANKER_MAX_MODEL_LEN:-512}"
+      - "--max-num-seqs"
+      - "${RERANKER_MAX_NUM_SEQS:-16}"
+      - "--enforce-eager"
+      - "--runner"
+      - "pooling"
+      - "${RERANKER_REMOTE_CODE_FLAG:---no-trust-remote-code}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 300s

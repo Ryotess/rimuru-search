@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env*
+!.env.example
+.venv
+venv/
+env/
+*.sqlite3
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Byte-compiled / cache / logs
+*.log
+
+# Docker
+*.pid
+.env
+
+# System
+.DS_Store
+Thumbs.db
+
+# Pytest
+.cache/
+.pytest_cache/
+htmlcov/
+coverage.xml
+.coverage
+.ruff_cache/
+.uv-cache/
+
+# Credentials and local data exports
+*.key
+*.pem
+*.p12
+*.secret
+scripts/documents.csv
+scripts/documents.jsonl
+
+.claude/

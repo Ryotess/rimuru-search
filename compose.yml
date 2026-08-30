@@ -1,0 +1,227 @@
+x-app-environment: &app-environment
+  GLOBAL_DATABASE_URL: postgresql://${PGSQL_USER:-hybrid_search}:${PGSQL_PASSWORD:-local_dev_password}@postgres:5432/${PGSQL_DB:-hybrid_search}
+  GLOBAL_HNSW_EF_SEARCH: ${GLOBAL_HNSW_EF_SEARCH:-200}
+  GLOBAL_HNSW_ITERATIVE_SCAN: ${GLOBAL_HNSW_ITERATIVE_SCAN:-strict_order}
+  GLOBAL_DB_POOL_SIZE: ${GLOBAL_DB_POOL_SIZE:-5}
+  GLOBAL_DB_MAX_OVERFLOW: ${GLOBAL_DB_MAX_OVERFLOW:-10}
+  GLOBAL_DB_POOL_TIMEOUT: ${GLOBAL_DB_POOL_TIMEOUT:-30}
+  GLOBAL_DB_POOL_RECYCLE: ${GLOBAL_DB_POOL_RECYCLE:-1800}
+  DOCUMENT_DEFAULT_COLLECTION: ${DOCUMENT_DEFAULT_COLLECTION:-default}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS-http://localhost:3000}
+  CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-false}
+  EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:-mixedbread-ai/mxbai-embed-large-v1}
+  EMBED_HOSTED_VLLM_API_BASE: ${COMPOSE_EMBED_API_BASE:-http://embedding:8000/v1}
+  EMBEDDING_REQUEST_MODEL: ${COMPOSE_EMBED_REQUEST_MODEL:-}
+  RERANKER_MODEL_ID: ${RERANKER_MODEL_ID:-cross-encoder/ms-marco-MiniLM-L6-v2}
+  RERANKER_HOSTED_VLLM_API_BASE: ${COMPOSE_RERANKER_API_BASE:-http://reranker:8000/v1}
+  RERANKER_REQUEST_MODEL: ${COMPOSE_RERANKER_REQUEST_MODEL:-}
+  RERANKER_TOP_N: ${RERANKER_TOP_N:-10}
+  RERANKER_MAX_DOCUMENT_LENGTH: ${RERANKER_MAX_DOCUMENT_LENGTH:-8192}
+  VDB_EMBEDDING_DIM: ${VDB_EMBEDDING_DIM:-1024}
+  LEXICAL_TOP_K_DEFAULT: ${LEXICAL_TOP_K_DEFAULT:-10}
+  LEXICAL_TOP_K_MAX: ${LEXICAL_TOP_K_MAX:-100}
+  LEXICAL_MIN_QUERY_LENGTH: ${LEXICAL_MIN_QUERY_LENGTH:-1}
+  LEXICAL_TRGM_MIN_SIMILARITY: ${LEXICAL_TRGM_MIN_SIMILARITY:-0.05}
+  LEXICAL_ENABLE_FUZZY: ${LEXICAL_ENABLE_FUZZY:-false}
+  SEARCH_LEXICAL_BACKEND: ${SEARCH_LEXICAL_BACKEND:-bm25}
+  SEARCH_VECTOR_TOP_K_DEFAULT: ${SEARCH_VECTOR_TOP_K_DEFAULT:-100}
+  SEARCH_LEXICAL_TOP_K_DEFAULT: ${SEARCH_LEXICAL_TOP_K_DEFAULT:-100}
+  SEARCH_USE_FUZZY_DEFAULT: ${SEARCH_USE_FUZZY_DEFAULT:-false}
+  SEARCH_MIN_SIMILARITY_DEFAULT: ${SEARCH_MIN_SIMILARITY_DEFAULT:-0.2}
+  SEARCH_RRF_TOP_K_DEFAULT: ${SEARCH_RRF_TOP_K_DEFAULT:-15}
+  SEARCH_RERANK_TOP_N_DEFAULT: ${SEARCH_RERANK_TOP_N_DEFAULT:-3}
+  SEARCH_ENABLE_RERANK: ${SEARCH_ENABLE_RERANK:-true}
+  SEED_ROWS_PER_CHUNK: ${SEED_ROWS_PER_CHUNK:-2000}
+  SEED_EMBED_BATCH_SIZE: ${SEED_EMBED_BATCH_SIZE:-256}
+  SEED_DB_BATCH_SIZE: ${SEED_DB_BATCH_SIZE:-2000}
+  SEED_MAX_EMBED_CONCURRENCY: ${SEED_MAX_EMBED_CONCURRENCY:-6}
+  IMPORT_ID_FIELD: ${IMPORT_ID_FIELD:-id}
+  IMPORT_CONTENT_FIELDS: ${IMPORT_CONTENT_FIELDS:-content}
+  IMPORT_METADATA_FIELDS: ${IMPORT_METADATA_FIELDS:-}
+  IMPORT_COLLECTION_FIELD: ${IMPORT_COLLECTION_FIELD:-collection}
+  IMPORT_GENERATE_IDS: ${IMPORT_GENERATE_IDS:-false}
+  IMPORT_MODE: ${IMPORT_MODE:-upsert}
+  IMPORT_FILE_ENCODING: ${IMPORT_FILE_ENCODING:-utf-8}
+  IMPORT_CSV_DELIMITER: ${IMPORT_CSV_DELIMITER:-,}
+  SOURCE_API_BASE_URL: ${COMPOSE_SOURCE_API_BASE_URL:-http://sample-source:3000}
+  SOURCE_API_DOCUMENTS_PATH: ${SOURCE_API_DOCUMENTS_PATH:-/v1/documents}
+  CACHE_REDIS_URL: ${COMPOSE_CACHE_REDIS_URL-redis://redis:6379/0}
+  CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-3600}
+  CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-hybrid-search:search:v2}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-vllm-common: &vllm-common
+  image: ${VLLM_IMAGE:-vllm/vllm-openai-cpu:v0.28.0}
+  restart: unless-stopped
+  volumes:
+    - huggingface_cache:/root/.cache/huggingface
+  environment:
+    VLLM_CPU_KVCACHE_SPACE: "1"
+  security_opt:
+    - seccomp=unconfined
+  cap_add:
+    - SYS_NICE
+  shm_size: 2gb
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
+      args:
+        POSTGRES_MAJOR: "18"
+        PG_TEXTSEARCH_VERSION: "1.2.0"
+        PG_TEXTSEARCH_SHA256: f2f0121e38ede58e92d00f12b9ee514aff654917ccaa5938a263ac4fa12d6b11 # pragma: allowlist secret
+    image: rimuru-search-postgres:18-pg_textsearch-1.2.0
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_preload_libraries=pg_textsearch"]
+    environment:
+      POSTGRES_DB: ${PGSQL_DB:-hybrid_search}
+      POSTGRES_USER: ${PGSQL_USER:-hybrid_search}
+      POSTGRES_PASSWORD: ${PGSQL_PASSWORD:-local_dev_password}
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Keep the PostgreSQL major version in the volume key so an existing
+      # PostgreSQL 16 demo volume is never mounted by PostgreSQL 18.
+      - postgres18_data:/var/lib/postgresql/data
+      - ./scripts/hybrid_db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  embedding:
+    <<: *vllm-common
+    ports:
+      - "${EMBEDDING_PORT:-5678}:8000"
+    command:
+      - "--model"
+      - "${EMBEDDING_MODEL_ID:-mixedbread-ai/mxbai-embed-large-v1}"
+      - "--served-model-name"
+      - "${EMBEDDING_MODEL_ID:-mixedbread-ai/mxbai-embed-large-v1}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--max-model-len"
+      - "${EMBEDDING_MAX_MODEL_LEN:-512}"
+      - "--max-num-seqs"
+      - "${EMBEDDING_MAX_NUM_SEQS:-16}"
+      - "--enforce-eager"
+      - "--runner"
+      - "pooling"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 600s
+
+  reranker:
+    <<: *vllm-common
+    ports:
+      - "${RERANKER_PORT:-5679}:8000"
+    command:
+      - "--model"
+      - "${RERANKER_MODEL_ID:-cross-encoder/ms-marco-MiniLM-L6-v2}"
+      - "--served-model-name"
+      - "${RERANKER_MODEL_ID:-cross-encoder/ms-marco-MiniLM-L6-v2}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--max-model-len"
+      - "${RERANKER_MAX_MODEL_LEN:-512}"
+      - "--max-num-seqs"
+      - "${RERANKER_MAX_NUM_SEQS:-16}"
+      - "--enforce-eager"
+      - "--runner"
+      - "pooling"
+      # Custom-code models require an explicit operator opt-in. Accepted
+      # values are --trust-remote-code and --no-trust-remote-code.
+      - "${RERANKER_REMOTE_CODE_FLAG:---no-trust-remote-code}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 600s
+
+  sample-source:
+    build: .
+    profiles: ["demo"]
+    restart: unless-stopped
+    command: ["/app/.venv/bin/uvicorn", "examples.sample_source_api:app", "--host", "0.0.0.0", "--port", "3000"]
+    ports:
+      - "${SOURCE_API_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:3000/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    environment: *app-environment
+    command: ["/app/.venv/bin/alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    build: .
+    profiles: ["demo"]
+    environment: *app-environment
+    command: ["/app/.venv/bin/python", "scripts/hybrid_db/seed.py"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      embedding:
+        condition: service_healthy
+      sample-source:
+        condition: service_healthy
+
+  importer:
+    build: .
+    profiles: ["tools"]
+    environment: *app-environment
+    entrypoint: ["/app/.venv/bin/python", "scripts/import_documents.py"]
+    command: ["--help"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    build: .
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 600s
+
+volumes:
+  postgres18_data:
+  huggingface_cache:

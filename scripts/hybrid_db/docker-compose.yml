@@ -1,0 +1,26 @@
+services:
+  postgres:
+    build:
+      context: ../..
+      dockerfile: docker/postgres/Dockerfile
+      args:
+        POSTGRES_MAJOR: "18"
+        PG_TEXTSEARCH_VERSION: "1.2.0"
+        PG_TEXTSEARCH_SHA256: f2f0121e38ede58e92d00f12b9ee514aff654917ccaa5938a263ac4fa12d6b11 # pragma: allowlist secret
+    image: rimuru-search-postgres:18-pg_textsearch-1.2.0
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_preload_libraries=pg_textsearch"]
+    environment:
+      POSTGRES_DB: ${PGSQL_DB:-hybrid_search}
+      POSTGRES_USER: ${PGSQL_USER:-hybrid_search}
+      POSTGRES_PASSWORD: ${PGSQL_PASSWORD:-local_dev_password}
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Do not attach a PostgreSQL 16 data directory to PostgreSQL 18.
+      - pgdata18:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  pgdata18:

@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rimuru Search Demo</title>
+    <style>
+      :root {
+        --bg: radial-gradient(circle at 20% 30%, #0f2c46, #0a1724 50%, #060c15);
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel-strong: rgba(255, 255, 255, 0.12);
+        --accent: #ffb347;
+        --accent-2: #5de4c7;
+        --text: #eaf4ff;
+        --muted: #9fb3cc;
+        --danger: #ff7b7b;
+        --mono: "JetBrains Mono", "SFMono-Regular", "Roboto Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
+
+      .shell {
+        width: min(1180px, 100%);
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.07),
+          rgba(255, 255, 255, 0.02)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 22px;
+        box-shadow: 0 20px 90px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+
+      header {
+        padding: 24px 28px;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        background: linear-gradient(90deg, rgba(93, 228, 199, 0.2), rgba(255, 179, 71, 0.16));
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0.4px;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      header span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      form {
+        display: grid;
+        gap: 14px;
+        padding: 24px 28px;
+        background: var(--panel);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 6px;
+        letter-spacing: 0.02em;
+      }
+
+      input,
+      button {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 15px;
+        background: rgba(5, 10, 18, 0.78);
+        color: var(--text);
+      }
+
+      input:focus,
+      button:focus {
+        outline: 2px solid var(--accent-2);
+      }
+
+      button {
+        background: linear-gradient(120deg, #ffcf70, #ff9d47);
+        color: #2b1600;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+        box-shadow: 0 10px 30px rgba(255, 159, 71, 0.3);
+      }
+
+      button:hover {
+        filter: brightness(1.02);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .pill::before {
+        content: "●";
+        color: var(--accent-2);
+        font-size: 10px;
+      }
+
+      .pill.error {
+        color: var(--danger);
+      }
+
+      .pill.error::before {
+        color: var(--danger);
+      }
+
+      .results {
+        padding: 20px 28px 30px;
+        display: grid;
+        gap: 18px;
+      }
+      .inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+        backdrop-filter: blur(6px);
+      }
+
+      .card:hover {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(93, 228, 199, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .rank {
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: 0.08em;
+      }
+
+      .content {
+        font-size: 17px;
+        font-weight: 600;
+        flex: 1;
+      }
+
+      .score {
+        font-family: var(--mono);
+        background: rgba(93, 228, 199, 0.16);
+        color: var(--accent-2);
+        padding: 6px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+      }
+
+      .details {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        display: none;
+        line-height: 1.6;
+      }
+
+      .details.open {
+        display: block;
+      }
+
+      .error {
+        color: var(--danger);
+        font-size: 14px;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .grid-two {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 14px;
+      }
+
+      .section-title {
+        margin: 0 0 6px 0;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      @media (max-width: 800px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <h1>Rimuru Search Demo</h1>
+        <span>BM25 + vector retrieval + RRF + optional reranking</span>
+      </header>
+
+      <form id="search-form">
+        <div class="row">
+          <div style="grid-column: span 2;">
+            <label for="query">Query</label>
+            <input
+              id="query"
+              name="query"
+              type="text"
+              placeholder="e.g., How can I combine keyword and semantic search?"
+              required
+            />
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button type="submit" id="submit-btn">Run hybrid search</button>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="vector_top_k">Vector candidates (optional)</label>
+            <input
+              id="vector_top_k"
+              name="vector_top_k"
+              type="number"
+              min="1"
+              max="200"
+              placeholder="defaults to 100"
+            />
+          </div>
+          <div>
+            <label for="lexical_top_k">Lexical candidates (optional)</label>
+            <input
+              id="lexical_top_k"
+              name="lexical_top_k"
+              type="number"
+              min="1"
+              max="200"
+              placeholder="defaults to 100"
+            />
+          </div>
+          <div>
+            <label for="rrf_top_k">RRF results (optional)</label>
+            <input
+              id="rrf_top_k"
+              name="rrf_top_k"
+              type="number"
+              min="1"
+              max="100"
+              placeholder="defaults to 15"
+            />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="rerank_top_n">Rerank top_n (optional)</label>
+            <input
+              id="rerank_top_n"
+              name="rerank_top_n"
+              type="number"
+              min="1"
+              max="200"
+              placeholder="defaults to 3"
+            />
+          </div>
+          <div>
+            <label for="use_fuzzy">Fuzzy lexical</label>
+            <div class="inline">
+              <input id="use_fuzzy" name="use_fuzzy" type="checkbox" />
+              <span>Enable trigram matching</span>
+            </div>
+          </div>
+          <div>
+            <label for="min_similarity">Min similarity (0-1, optional)</label>
+            <input
+              id="min_similarity"
+              name="min_similarity"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              placeholder="defaults to server"
+            />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="collection">Collection (optional)</label>
+            <input
+              id="collection"
+              name="collection"
+              type="text"
+              placeholder="defaults to server"
+            />
+          </div>
+          <div style="grid-column: span 2;">
+            <label for="metadata_filter">Metadata filter as JSON (optional)</label>
+            <input
+              id="metadata_filter"
+              name="metadata_filter"
+              type="text"
+              placeholder='e.g., {"language":"en"}'
+            />
+          </div>
+        </div>
+        <div class="row">
+          <div style="grid-column: span 2;">
+            <label for="document_ids">Document IDs (comma separated, optional)</label>
+            <input
+              id="document_ids"
+              name="document_ids"
+              type="text"
+              placeholder="e.g., article-42, ticket-108"
+            />
+          </div>
+        </div>
+        <div class="pill" id="status">Ready.</div>
+      </form>
+
+      <div class="results" id="results"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById("search-form");
+      const resultsEl = document.getElementById("results");
+      const statusEl = document.getElementById("status");
+      const submitBtn = document.getElementById("submit-btn");
+
+      function setStatus(text, isError = false) {
+        statusEl.textContent = text;
+        statusEl.className = "pill" + (isError ? " error" : "");
+      }
+
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function safeScore(score) {
+        return typeof score === "number" ? score.toFixed(4) : "n/a";
+      }
+
+      function renderResults({ rerankedHits }) {
+        resultsEl.innerHTML = "";
+
+        const rerankSection = document.createElement("div");
+        rerankSection.innerHTML = `<div class="section-title">Final results (details)</div>`;
+
+        if (rerankedHits && rerankedHits.length) {
+          rerankedHits.forEach((hit, idx) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            const title = hit.metadata?.title || hit.id;
+            const metadata = JSON.stringify(hit.metadata || {}, null, 2);
+            card.innerHTML = `
+              <div class="card-header">
+                <div class="rank">#${idx + 1}</div>
+                <div class="content">${escapeHtml(title)}</div>
+                <div class="score">rerank=${safeScore(hit.rerank_score)}</div>
+              </div>
+              <div class="meta">
+                <span>ID ${escapeHtml(hit.id)}</span> ·
+                <span>RRF ${safeScore(hit.rrf_score)}</span> ·
+                <span>Vector rank ${hit.vector_rank ?? "–"} (dist ${hit.vector_distance ?? "n/a"})</span> ·
+                <span>Lexical rank ${hit.lexical_rank ?? "–"} (score ${safeScore(hit.lexical_score)})</span>
+              </div>
+              <div class="details open">
+                <div>${escapeHtml(hit.content || "(no content)")}</div>
+                <pre>${escapeHtml(metadata)}</pre>
+              </div>
+            `;
+            rerankSection.appendChild(card);
+          });
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent =
+            "No results. Try a broader query and verify the collection, filters, and imported data.";
+          rerankSection.appendChild(empty);
+        }
+
+        resultsEl.appendChild(rerankSection);
+      }
+
+      function parseOptionalInt(value, min, max) {
+        if (value === null || value === undefined) return undefined;
+        const trimmed = String(value).trim();
+        if (!trimmed) return undefined;
+        const num = parseInt(trimmed, 10);
+        if (Number.isNaN(num)) return undefined;
+        return Math.min(Math.max(num, min), max);
+      }
+
+      function parseOptionalFloat(value, min, max) {
+        if (value === null || value === undefined) return undefined;
+        const trimmed = String(value).trim();
+        if (!trimmed) return undefined;
+        const num = parseFloat(trimmed);
+        if (Number.isNaN(num)) return undefined;
+        return Math.min(Math.max(num, min), max);
+      }
+
+      function parseDocumentIdList(value) {
+        if (!value) return undefined;
+        const documentIds = value
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean);
+        return documentIds.length ? documentIds : undefined;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const query = form.query.value.trim();
+        if (!query) {
+          setStatus("Please enter a query.", true);
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Searching…";
+        setStatus("Fetching /v1/search …");
+        resultsEl.innerHTML = "";
+
+        try {
+          const payload = { query };
+
+          const vectorTopK = parseOptionalInt(form.vector_top_k.value, 1, 200);
+          const lexicalTopK = parseOptionalInt(form.lexical_top_k.value, 1, 200);
+          const rrfTopK = parseOptionalInt(form.rrf_top_k.value, 1, 100);
+          const rerankTopN = parseOptionalInt(form.rerank_top_n.value, 1, 200);
+          const documentIds = parseDocumentIdList(form.document_ids.value);
+          const collection = form.collection.value.trim();
+          const minSimilarity = parseOptionalFloat(form.min_similarity.value, 0, 1);
+          const useFuzzy = form.use_fuzzy.checked;
+
+          if (vectorTopK) payload.vector_top_k = vectorTopK;
+          if (lexicalTopK) payload.lexical_top_k = lexicalTopK;
+          if (rrfTopK) payload.rrf_top_k = rrfTopK;
+          if (rerankTopN) payload.rerank_top_n = rerankTopN;
+          if (documentIds) payload.document_ids = documentIds;
+          if (collection) payload.collection = collection;
+          if (form.metadata_filter.value.trim()) {
+            const metadataFilter = JSON.parse(form.metadata_filter.value);
+            if (!metadataFilter || Array.isArray(metadataFilter) || typeof metadataFilter !== "object") {
+              throw new Error("Metadata filter must be a JSON object.");
+            }
+            payload.metadata_filter = metadataFilter;
+          }
+          payload.use_fuzzy = useFuzzy;
+          if (minSimilarity !== undefined) payload.min_similarity = minSimilarity;
+
+          const response = await fetch("/v1/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          renderResults({
+            rerankedHits: data.hits || [],
+          });
+          setStatus(`Returned ${data.hits?.length ?? 0} ranked results.`);
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message || "Request failed", true);
+          resultsEl.innerHTML = `<div class="error">${escapeHtml(error.message || "Request failed")}</div>`;
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Run hybrid search";
+        }
+      });
+    </script>
+  </body>
+</html>

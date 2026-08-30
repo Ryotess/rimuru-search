@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose an improvement to Rimuru Search.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the use case before the proposed implementation. Keep requests
+        domain-neutral and suitable for a public reference project.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to accomplish, and who benefits?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the public API or workflow you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Note any workarounds or competing approaches you evaluated.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checks
+      options:
+        - label: This request preserves domain-neutral document terminology.
+          required: true
+        - label: This request does not require secrets or environment-specific production infrastructure.
+          required: true

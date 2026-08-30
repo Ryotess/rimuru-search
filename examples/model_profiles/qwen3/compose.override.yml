@@ -1,0 +1,25 @@
+services:
+  reranker:
+    volumes:
+      - ./examples/model_profiles/qwen3/qwen3_reranker.jinja:/config/qwen3_reranker.jinja:ro
+    command:
+      - "--model"
+      - "${RERANKER_MODEL_ID:-Qwen/Qwen3-Reranker-0.6B}"
+      - "--served-model-name"
+      - "${RERANKER_MODEL_ID:-Qwen/Qwen3-Reranker-0.6B}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--max-model-len"
+      - "${RERANKER_MAX_MODEL_LEN:-512}"
+      - "--max-num-seqs"
+      - "${RERANKER_MAX_NUM_SEQS:-16}"
+      - "--enforce-eager"
+      - "--runner"
+      - "pooling"
+      - "${RERANKER_REMOTE_CODE_FLAG:---no-trust-remote-code}"
+      - "--hf_overrides"
+      - '{"architectures":["Qwen3ForSequenceClassification"],"classifier_from_token":["no","yes"],"is_original_qwen3_reranker":true}'
+      - "--chat-template"
+      - "/config/qwen3_reranker.jinja"

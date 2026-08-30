@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.pytest_cache
+.ruff_cache
+tests
+docs
+*.pyc
+*.log
+.env*
+*.key
+*.pem
+*.p12
+*.secret
+scripts/documents.csv
+scripts/documents.jsonl
