@@ -2130,7 +2130,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "litellm", specifier = "==1.98.0" },
     { name = "loguru", specifier = ">=0.7.3" },
-    { name = "numpy", specifier = "<=2.2" },
+    { name = "numpy", specifier = "<2.3" },
     { name = "pgvector", specifier = ">=0.4.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.4" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
